@@ -5,11 +5,50 @@ import json
 import threading
 
 
-DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"
+PROVIDERS = {
+    "deepseek": {
+        "label": "DeepSeek",
+        "base_url": "https://api.deepseek.com/v1/chat/completions",
+        "models": [
+            {"id": "deepseek-chat", "label": "deepseek-chat"},
+            {"id": "deepseek-reasoner", "label": "deepseek-reasoner"},
+        ],
+    },
+    "doubao": {
+        "label": "豆包",
+        "base_url": "https://ark.cn-beijing.volces.com/api/v3/chat/completions",
+        "models": [
+            {"id": "doubao-pro-32k", "label": "doubao-pro-32k"},
+            {"id": "doubao-pro-128k", "label": "doubao-pro-128k"},
+            {"id": "doubao-lite-32k", "label": "doubao-lite-32k"},
+            {"id": "doubao-lite-128k", "label": "doubao-lite-128k"},
+        ],
+    },
+    "kimi": {
+        "label": "Kimi",
+        "base_url": "https://api.moonshot.cn/v1/chat/completions",
+        "models": [
+            {"id": "moonshot-v1-8k", "label": "moonshot-v1-8k"},
+            {"id": "moonshot-v1-32k", "label": "moonshot-v1-32k"},
+            {"id": "moonshot-v1-128k", "label": "moonshot-v1-128k"},
+        ],
+    },
+}
+
+DIRECTIONS = {
+    "zh2en": {"label": "中 → 英", "input_hint": "输入中文：", "output_hint": "英文结果：",
+              "input_warn": "请先输入要翻译的中文",
+              "sys_prompt": "You are a professional translator. Translate the following Chinese text to English. Output only the translation, nothing else."},
+    "en2zh": {"label": "英 → 中", "input_hint": "输入英文：", "output_hint": "中文结果：",
+              "input_warn": "请先输入要翻译的英文",
+              "sys_prompt": "You are a professional translator. Translate the following English text to Chinese. Output only the translation, nothing else."},
+}
 
 
-def translate_with_deepseek(api_key, text, callback):
-    """Call DeepSeek API in a separate thread."""
+def translate(api_key, text, direction, callback):
+    provider = PROVIDERS[get_provider_key()]
+    model_id = model_var.get()
+    sys_prompt = DIRECTIONS[direction]["sys_prompt"]
 
     def task():
         headers = {
@@ -17,22 +56,15 @@ def translate_with_deepseek(api_key, text, callback):
             "Content-Type": "application/json",
         }
         payload = {
-            "model": "deepseek-chat",
+            "model": model_id,
             "messages": [
-                {
-                    "role": "system",
-                    "content": (
-                        "You are a professional translator. "
-                        "Translate the following Chinese text to English. "
-                        "Output only the translation, nothing else."
-                    ),
-                },
+                {"role": "system", "content": sys_prompt},
                 {"role": "user", "content": text},
             ],
             "stream": False,
         }
         try:
-            resp = requests.post(DEEPSEEK_API_URL, headers=headers, json=payload, timeout=60)
+            resp = requests.post(provider["base_url"], headers=headers, json=payload, timeout=60)
             data = resp.json()
             if resp.status_code == 200:
                 result = data["choices"][0]["message"]["content"].strip()
@@ -58,19 +90,40 @@ def on_translate_complete(result, error):
         output_box.insert("1.0", result)
 
 
+def get_provider_key():
+    label = provider_var.get()
+    for key, p in PROVIDERS.items():
+        if p["label"] == label:
+            return key
+    return "deepseek"
+
+def on_provider_change(*args):
+    provider = PROVIDERS[get_provider_key()]
+    models = provider["models"]
+    model_menu["values"] = [m["label"] for m in models]
+    model_var.set(models[0]["id"])
+
+
+def on_direction_change(*args):
+    d = direction_var.get()
+    info = DIRECTIONS[d]
+    input_label.config(text=info["input_hint"])
+    output_label.config(text=info["output_hint"])
+
+
 def translate_text():
     api_key = api_key_var.get().strip()
     if not api_key:
-        messagebox.showwarning("提示", "请先输入 DeepSeek API Key")
+        messagebox.showwarning("提示", "请先输入 API Key")
         return
     input_text = input_box.get("1.0", tk.END).strip()
     if not input_text:
-        messagebox.showwarning("提示", "请先输入要翻译的中文")
+        messagebox.showwarning("提示", DIRECTIONS[direction_var.get()]["input_warn"])
         return
 
     translate_btn.config(state=tk.DISABLED)
     status_label.config(text="翻译中...")
-    translate_with_deepseek(api_key, input_text, on_translate_complete)
+    translate(api_key, input_text, direction_var.get(), on_translate_complete)
 
 
 def clear_text():
@@ -87,36 +140,75 @@ def toggle_api_key_visibility():
         toggle_btn.config(text="隐藏")
 
 
-# Build GUI
+# ========== GUI ==========
 root = tk.Tk()
-root.title("DeepSeek 中译英翻译")
-root.geometry("620x540")
+root.title("AI 翻译工具")
+root.geometry("640x600")
 root.resizable(True, True)
 
 frame = ttk.Frame(root, padding="16")
 frame.pack(fill=tk.BOTH, expand=True)
 
-# API Key row
-ttk.Label(frame, text="DeepSeek API Key：", font=("微软雅黑", 10)).pack(anchor=tk.W)
-api_key_frame = ttk.Frame(frame)
-api_key_frame.pack(fill=tk.X, pady=(4, 4))
+# ── Provider & API Key & Model ──
+cfg_frame = ttk.LabelFrame(frame, text="模型配置", padding=(8, 6))
+cfg_frame.pack(fill=tk.X, pady=(10, 0))
+
+# Row 1: provider
+p_row = ttk.Frame(cfg_frame)
+p_row.pack(fill=tk.X, pady=(0, 6))
+ttk.Label(p_row, text="服务商：", font=("微软雅黑", 10)).pack(side=tk.LEFT)
+
+provider_var = tk.StringVar(value="deepseek")
+provider_var.trace_add("write", on_provider_change)
+provider_menu = ttk.Combobox(
+    p_row, textvariable=provider_var, state="readonly", width=14, font=("微软雅黑", 10)
+)
+provider_menu["values"] = [p["label"] for p in PROVIDERS.values()]
+provider_menu.pack(side=tk.LEFT, padx=(4, 0))
+
+# Row 2: API Key
+api_row = ttk.Frame(cfg_frame)
+api_row.pack(fill=tk.X, pady=(0, 6))
+ttk.Label(api_row, text="API Key：", font=("微软雅黑", 10)).pack(side=tk.LEFT)
 
 api_key_var = tk.StringVar()
-api_key_entry = ttk.Entry(api_key_frame, textvariable=api_key_var, show="*", font=("微软雅黑", 10))
-api_key_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+api_key_entry = ttk.Entry(api_row, textvariable=api_key_var, show="*", font=("微软雅黑", 10))
+api_key_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(4, 4))
 
-toggle_btn = ttk.Button(api_key_frame, text="显示", width=5, command=toggle_api_key_visibility)
-toggle_btn.pack(side=tk.RIGHT, padx=(6, 0))
+toggle_btn = ttk.Button(api_row, text="显示", width=5, command=toggle_api_key_visibility)
+toggle_btn.pack(side=tk.RIGHT)
 
-# Separator
-ttk.Separator(frame, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=(10, 10))
+# Row 3: model version
+m_row = ttk.Frame(cfg_frame)
+m_row.pack(fill=tk.X, pady=(0, 4))
+ttk.Label(m_row, text="模　型：", font=("微软雅黑", 10)).pack(side=tk.LEFT)
 
-# Input area
-ttk.Label(frame, text="输入中文：", font=("微软雅黑", 11)).pack(anchor=tk.W)
-input_box = tk.Text(frame, height=8, font=("微软雅黑", 11), padx=6, pady=6)
+model_var = tk.StringVar(value="deepseek-chat")
+model_menu = ttk.Combobox(
+    m_row, textvariable=model_var, state="readonly", width=30, font=("微软雅黑", 10)
+)
+model_menu.pack(side=tk.LEFT, padx=(4, 0))
+
+
+# ── Direction ──
+dir_frame = ttk.LabelFrame(frame, text="翻译方向", padding=(8, 6))
+dir_frame.pack(fill=tk.X, pady=(8, 0))
+
+direction_var = tk.StringVar(value="zh2en")
+direction_var.trace_add("write", on_direction_change)
+ttk.Radiobutton(dir_frame, text="中 → 英", variable=direction_var, value="zh2en").pack(side=tk.LEFT, padx=(4, 12))
+ttk.Radiobutton(dir_frame, text="英 → 中", variable=direction_var, value="en2zh").pack(side=tk.LEFT, padx=4)
+
+# ── Separator ──
+ttk.Separator(frame, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=(12, 10))
+
+# ── Input ──
+input_label = ttk.Label(frame, text="输入中文：", font=("微软雅黑", 11))
+input_label.pack(anchor=tk.W)
+input_box = tk.Text(frame, height=6, font=("微软雅黑", 11), padx=6, pady=6)
 input_box.pack(fill=tk.X, pady=(4, 8))
 
-# Button row
+# ── Buttons ──
 btn_frame = ttk.Frame(frame)
 btn_frame.pack(fill=tk.X, pady=4)
 
@@ -129,17 +221,20 @@ clear_btn.pack(side=tk.LEFT)
 status_label = ttk.Label(btn_frame, text="就绪", font=("微软雅黑", 9), foreground="gray")
 status_label.pack(side=tk.RIGHT)
 
-# Output area
-ttk.Label(frame, text="英文结果：", font=("微软雅黑", 11)).pack(anchor=tk.W, pady=(12, 0))
-output_box = tk.Text(frame, height=8, font=("微软雅黑", 11), padx=6, pady=6, fg="#2c3e50")
+# ── Output ──
+output_label = ttk.Label(frame, text="英文结果：", font=("微软雅黑", 11))
+output_label.pack(anchor=tk.W, pady=(12, 0))
+output_box = tk.Text(frame, height=6, font=("微软雅黑", 11), padx=6, pady=6, fg="#2c3e50")
 output_box.pack(fill=tk.BOTH, expand=True, pady=(4, 8))
 
-# Hotkey hint
+# ── Hotkey hint ──
 ttk.Label(frame, text="快捷键: Ctrl+Enter 翻译 | Ctrl+Shift+C 清空",
           font=("微软雅黑", 9), foreground="gray").pack(anchor=tk.E)
 
-# Keyboard shortcuts
 root.bind("<Control-Return>", lambda e: translate_text())
 root.bind("<Control-Shift-KeyPress-C>", lambda e: clear_text())
+
+# Init
+on_provider_change()
 
 root.mainloop()

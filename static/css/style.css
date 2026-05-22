@@ -254,6 +254,10 @@ select {
   background-position: right 9px center;
   cursor: pointer;
 }
+select option {
+  background: #1a1a2e;
+  color: #fff;
+}
 
 input[type="text"], input[type="password"] {
   flex: 1;

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 翻译助手</title>
+<link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div class="container">
+
+  <header class="app-header">
+    <h1>AI 翻译助手</h1>
+    <p>多模型翻译 · 图片文字识别</p>
+  </header>
+
+  <main>
+    <!-- Config -->
+    <section class="card">
+      <div class="card-header">配置</div>
+      <div class="card-body">
+        <div class="form-row">
+          <label>服务商</label>
+          <select id="provider" style="flex:1"></select>
+        </div>
+        <div class="form-row">
+          <label>API Key</label>
+          <div class="input-wrap">
+            <input type="password" id="apiKey" placeholder="输入你的 API Key">
+            <button class="btn btn-ghost" id="toggleKey" style="padding:7px 12px;font-size:13px">显示</button>
+          </div>
+        </div>
+        <div class="form-row">
+          <label>模型</label>
+          <select id="model" style="flex:1"></select>
+        </div>
+        <div class="form-row">
+          <label>方向</label>
+          <div class="radio-group" id="directionGroup">
+            <label><input type="radio" name="direction" value="zh2en" checked><span>中 → 英</span></label>
+            <label><input type="radio" name="direction" value="en2zh"><span>英 → 中</span></label>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Input -->
+    <section class="card">
+      <div class="card-header">输入</div>
+      <div class="card-body">
+        <textarea id="inputText" placeholder="在此输入文本，也可以 Ctrl+V 直接粘贴图片自动识别..."></textarea>
+      </div>
+    </section>
+
+    <!-- Actions -->
+    <div class="actions">
+      <button class="btn btn-primary" id="translateBtn">翻译</button>
+      <button class="btn btn-secondary" id="ocrBtn">识别图片</button>
+      <input type="file" id="fileInput" accept="image/*" hidden>
+      <button class="btn btn-ghost" id="clearBtn">清空</button>
+    </div>
+
+    <!-- Output -->
+    <section class="card">
+      <div class="card-header">
+        <span>输出</span>
+        <button class="btn btn-sm" id="copyBtn">复制</button>
+      </div>
+      <div class="card-body">
+        <textarea id="outputText" readonly placeholder="翻译结果会在显示..."></textarea>
+      </div>
+    </section>
+
+    <!-- Status -->
+    <div class="status-bar">
+      <span id="statusLabel">就绪</span>
+      <span class="shortcuts">Ctrl+Enter 翻译 · Ctrl+V 粘贴图片</span>
+    </div>
+  </main>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/static/js/app.js"></script>
+</body>
+</html>

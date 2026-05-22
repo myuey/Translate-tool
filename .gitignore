@@ -23,5 +23,10 @@ env/
 Thumbs.db
 .DS_Store
 
+# PyInstaller build output
+release/
+build_tmp/
+spec_tmp/
+
 # Project specific (keep clean)
 *.argosmodel

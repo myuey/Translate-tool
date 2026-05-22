@@ -1,8 +1,19 @@
 import os
+import sys
 import tempfile
 import threading
+import webbrowser
 
 from flask import Flask, render_template, request, jsonify
+
+
+def resource_path(relative_path):
+    """Get absolute path to resource — works for dev and PyInstaller frozen builds."""
+    try:
+        base_path = sys._MEIPASS
+    except AttributeError:
+        base_path = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(base_path, relative_path)
 
 PROVIDERS = {
     "deepseek": {
@@ -61,7 +72,9 @@ def get_ocr_reader():
     return _ocr_reader
 
 
-app = Flask(__name__)
+app = Flask(__name__,
+    template_folder=resource_path("templates"),
+    static_folder=resource_path("static"))
 
 
 @app.route("/")
@@ -172,7 +185,5 @@ def api_ocr():
 
 
 if __name__ == "__main__":
-    import webbrowser
-
-    webbrowser.open("http://127.0.0.1:5000")
+    threading.Timer(2.5, lambda: webbrowser.open("http://127.0.0.1:5000")).start()
     app.run(host="127.0.0.1", port=5000, debug=False, threaded=True)

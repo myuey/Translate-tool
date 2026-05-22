@@ -153,10 +153,48 @@ async function doOcr(file) {
   }
 }
 
+// ── Translate image (multimodal: vision API; non-multimodal: OCR + translate) ──
+async function doTranslateImage(file) {
+  const apiKey = document.getElementById("apiKey").value.trim();
+  if (!apiKey) { toast("请先输入 API Key"); return; }
+
+  setStatus("识别+翻译中...", true);
+  const btn = document.getElementById("translateBtn");
+  btn.disabled = true;
+
+  try {
+    const form = new FormData();
+    form.append("image", file);
+    form.append("api_key", apiKey);
+    form.append("provider", document.getElementById("provider").value);
+    form.append("model", document.getElementById("model").value);
+    form.append("direction", document.querySelector('input[name="direction"]:checked').value);
+
+    const res = await fetch("/api/translate-image", { method: "POST", body: form });
+    const data = await res.json();
+
+    if (data.error) {
+      toast(data.error);
+      setStatus("处理失败");
+    } else {
+      document.getElementById("outputText").value = data.result;
+      if (data.multimodal) {
+        setStatus(`多模态翻译完成 · ${data.result.length} 字符`);
+      } else {
+        setStatus(`OCR+翻译完成 · ${data.result.length} 字符`);
+      }
+    }
+  } catch (e) {
+    toast("请求失败");
+    setStatus("处理失败");
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 // ── OCR via clipboard paste ──
 document.addEventListener("paste", async (e) => {
   if (e.target && e.target.id === "apiKey") return;
-  if (!ocrAvailable) return;
 
   const items = e.clipboardData?.items;
   if (!items) return;
@@ -170,7 +208,21 @@ document.addEventListener("paste", async (e) => {
   e.preventDefault();
   const file = imageItem.getAsFile();
   if (!file) return;
-  await doOcr(file);
+
+  // 判断当前模型是否支持多模态
+  const providerKey = document.getElementById("provider").value;
+  const provider = providers[providerKey];
+  if (provider && provider.multimodal) {
+    // 多模态模型 → 直接调用大模型识别+翻译
+    await doTranslateImage(file);
+  } else {
+    // 非多模态模型 → 需要 easyocr 回退
+    if (!ocrAvailable) {
+      toast("当前模型不支持图片识别，请切换至 Kimi 或安装 easyocr");
+      return;
+    }
+    await doOcr(file);
+  }
 });
 
 // ── Copy ──

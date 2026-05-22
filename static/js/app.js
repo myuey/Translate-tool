@@ -209,10 +209,12 @@ document.addEventListener("paste", async (e) => {
   const file = imageItem.getAsFile();
   if (!file) return;
 
-  // 判断当前模型是否支持多模态
+  // 判断当前选中的模型是否多模态
   const providerKey = document.getElementById("provider").value;
+  const modelId = document.getElementById("model").value;
   const provider = providers[providerKey];
-  if (provider && provider.multimodal) {
+  const model = provider && provider.models.find(m => m.id === modelId);
+  if (model && model.multimodal) {
     // 多模态模型 → 直接调用大模型识别+翻译
     await doTranslateImage(file);
   } else {

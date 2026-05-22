@@ -20,31 +20,31 @@ PROVIDERS = {
         "label": "DeepSeek",
         "base_url": "https://api.deepseek.com/v1/chat/completions",
         "models": [
-            {"id": "deepseek-chat", "label": "deepseek-chat"},
-            {"id": "deepseek-reasoner", "label": "deepseek-reasoner"},
+            {"id": "deepseek-chat", "label": "deepseek-chat", "multimodal": False},
+            {"id": "deepseek-reasoner", "label": "deepseek-reasoner", "multimodal": False},
         ],
-        "multimodal": False,
     },
     "doubao": {
         "label": "豆包",
         "base_url": "https://ark.cn-beijing.volces.com/api/v3/chat/completions",
         "models": [
-            {"id": "doubao-pro-32k", "label": "doubao-pro-32k"},
-            {"id": "doubao-pro-128k", "label": "doubao-pro-128k"},
-            {"id": "doubao-lite-32k", "label": "doubao-lite-32k"},
-            {"id": "doubao-lite-128k", "label": "doubao-lite-128k"},
+            {"id": "doubao-pro-32k", "label": "doubao-pro-32k", "multimodal": False},
+            {"id": "doubao-pro-128k", "label": "doubao-pro-128k", "multimodal": False},
+            {"id": "doubao-lite-32k", "label": "doubao-lite-32k", "multimodal": False},
+            {"id": "doubao-lite-128k", "label": "doubao-lite-128k", "multimodal": False},
         ],
-        "multimodal": False,
     },
     "kimi": {
         "label": "Kimi",
         "base_url": "https://api.moonshot.cn/v1/chat/completions",
         "models": [
-            {"id": "moonshot-v1-8k", "label": "moonshot-v1-8k"},
-            {"id": "moonshot-v1-32k", "label": "moonshot-v1-32k"},
-            {"id": "moonshot-v1-128k", "label": "moonshot-v1-128k"},
+            {"id": "moonshot-v1-8k", "label": "moonshot-v1-8k", "multimodal": False},
+            {"id": "moonshot-v1-32k", "label": "moonshot-v1-32k", "multimodal": False},
+            {"id": "moonshot-v1-128k", "label": "moonshot-v1-128k", "multimodal": False},
+            {"id": "moonshot-v1-8k-vision-preview", "label": "moonshot-v1-8k-vision-preview ✦", "multimodal": True},
+            {"id": "moonshot-v1-32k-vision-preview", "label": "moonshot-v1-32k-vision-preview ✦", "multimodal": True},
+            {"id": "moonshot-v1-128k-vision-preview", "label": "moonshot-v1-128k-vision-preview ✦", "multimodal": True},
         ],
-        "multimodal": True,
     },
 }
 
@@ -89,7 +89,7 @@ def index():
 def api_config():
     return jsonify({
         "providers": {
-            k: {"label": v["label"], "models": v["models"], "multimodal": v.get("multimodal", False)}
+            k: {"label": v["label"], "models": v["models"]}
             for k, v in PROVIDERS.items()
         },
         "directions": {k: {"label": v.get("label", k)} for k, v in DIRECTIONS.items()},
@@ -207,6 +207,13 @@ def api_translate_image():
     if not provider:
         return jsonify({"error": "未知的服务商"}), 400
 
+    # 查找模型判断是否多模态
+    is_multimodal = False
+    for m in provider.get("models", []):
+        if m["id"] == model_id:
+            is_multimodal = m.get("multimodal", False)
+            break
+
     # Read image
     image_data = None
     if "image" in request.files:
@@ -217,8 +224,6 @@ def api_translate_image():
 
     if not image_data:
         return jsonify({"error": "未提供图片"}), 400
-
-    is_multimodal = provider.get("multimodal", False)
 
     if is_multimodal:
         # ── Vision API: 大模型直接识别+翻译 ──

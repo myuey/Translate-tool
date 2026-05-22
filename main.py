@@ -1,8 +1,14 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, filedialog
 import requests
 import json
 import threading
+
+try:
+    import easyocr
+    OCR_AVAILABLE = True
+except ImportError:
+    OCR_AVAILABLE = False
 
 
 PROVIDERS = {
@@ -131,6 +137,67 @@ def clear_text():
     output_box.delete("1.0", tk.END)
 
 
+def copy_result():
+    text = output_box.get("1.0", tk.END).strip()
+    if not text:
+        return
+    root.clipboard_clear()
+    root.clipboard_append(text)
+    status_label.config(text="已复制")
+    root.after(2000, lambda: status_label.config(text="就绪"))
+
+
+_ocr_reader = None
+def get_ocr_reader():
+    global _ocr_reader
+    if _ocr_reader is None:
+        _ocr_reader = easyocr.Reader(["ch_sim", "en"], gpu=False)
+    return _ocr_reader
+
+
+def select_image():
+    if not OCR_AVAILABLE:
+        messagebox.showwarning("提示", "OCR 未安装，请运行: pip install easyocr")
+        return
+    file_path = filedialog.askopenfilename(
+        title="选择图片",
+        filetypes=[("图片文件", "*.png *.jpg *.jpeg *.bmp *.tiff")],
+    )
+    if not file_path:
+        return
+
+    translate_btn.config(state=tk.DISABLED)
+    status_label.config(text="识别中...")
+
+    def task():
+        try:
+            reader = get_ocr_reader()
+            result = reader.readtext(file_path)
+            lines = [item[1] for item in result]
+            text = "\n".join(lines) if lines else ""
+            root.after(0, lambda: _on_ocr_done(text))
+        except Exception as e:
+            root.after(0, lambda: _on_ocr_error(str(e)))
+
+    threading.Thread(target=task, daemon=True).start()
+
+
+def _on_ocr_done(text):
+    translate_btn.config(state=tk.NORMAL)
+    if text.strip():
+        input_box.delete("1.0", tk.END)
+        input_box.insert("1.0", text)
+        status_label.config(text=f"识别完成，{len(text)} 字符")
+    else:
+        status_label.config(text="未识别到文字")
+
+
+def _on_ocr_error(msg):
+    translate_btn.config(state=tk.NORMAL)
+    status_label.config(text="识别失败")
+    messagebox.showerror("识别失败", msg)
+
+
 def toggle_api_key_visibility():
     if api_key_entry.cget("show") == "":
         api_key_entry.config(show="*")
@@ -213,10 +280,18 @@ btn_frame = ttk.Frame(frame)
 btn_frame.pack(fill=tk.X, pady=4)
 
 translate_btn = ttk.Button(btn_frame, text="翻译 →", command=translate_text)
-translate_btn.pack(side=tk.LEFT, padx=(0, 8))
+translate_btn.pack(side=tk.LEFT, padx=(0, 6))
+
+ocr_btn = ttk.Button(btn_frame, text="识别图片", command=select_image)
+ocr_btn.pack(side=tk.LEFT, padx=(0, 6))
+
+ttk.Separator(btn_frame, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=(0, 6))
 
 clear_btn = ttk.Button(btn_frame, text="清空", command=clear_text)
-clear_btn.pack(side=tk.LEFT)
+clear_btn.pack(side=tk.LEFT, padx=(0, 6))
+
+copy_btn = ttk.Button(btn_frame, text="复制", command=copy_result)
+copy_btn.pack(side=tk.LEFT)
 
 status_label = ttk.Label(btn_frame, text="就绪", font=("微软雅黑", 9), foreground="gray")
 status_label.pack(side=tk.RIGHT)

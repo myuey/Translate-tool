@@ -7,81 +7,103 @@
 <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
-<div class="container">
 
+<canvas id="particles-canvas"></canvas>
+
+<svg style="position:absolute;width:0;height:0">
+  <defs>
+    <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00f5ff"/>
+      <stop offset="50%" stop-color="#7b2ff0"/>
+      <stop offset="100%" stop-color="#ff0080"/>
+    </linearGradient>
+  </defs>
+</svg>
+
+<div class="container">
   <header class="app-header">
+    <div class="logo-wrap">
+      <div class="logo-ring"></div>
+      <div class="logo">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12.87 15.07l-2.54-2.51.03-.03A17.52 17.52 0 0 0 14.07 6H17V4h-7V2H8v2H1v1.99h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11.76-2.04zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12zm-2.62 7l1.62-4.33L19.12 17h-3.24z"/>
+        </svg>
+      </div>
+    </div>
     <h1>AI 翻译助手</h1>
-    <p>多模型翻译 · 图片文字识别</p>
+    <p class="subtitle">✦ 多模型翻译 · 图片识别 ✦</p>
   </header>
 
-  <main>
-    <!-- Config -->
-    <section class="card">
-      <div class="card-header">配置</div>
-      <div class="card-body">
-        <div class="form-row">
-          <label>服务商</label>
-          <select id="provider" style="flex:1"></select>
-        </div>
-        <div class="form-row">
-          <label>API Key</label>
-          <div class="input-wrap">
-            <input type="password" id="apiKey" placeholder="输入你的 API Key">
-            <button class="btn btn-ghost" id="toggleKey" style="padding:7px 12px;font-size:13px">显示</button>
+  <main class="main-grid">
+    <!-- Left: Config -->
+    <div class="col-left">
+      <section class="card">
+        <div class="card-header">模型配置</div>
+        <div class="card-body">
+          <div class="form-row">
+            <label>服务商</label>
+            <select id="provider" style="flex:1"></select>
+          </div>
+          <div class="form-row">
+            <label>API Key</label>
+            <div class="input-wrap">
+              <input type="password" id="apiKey" placeholder="输入你的 API Key">
+              <button class="btn btn-ghost" id="toggleKey" style="padding:8px 14px;font-size:12px">显示</button>
+            </div>
+          </div>
+          <div class="form-row">
+            <label>模型</label>
+            <select id="model" style="flex:1"></select>
+          </div>
+          <div class="form-row">
+            <label>方向</label>
+            <div class="radio-group" id="directionGroup">
+              <label><input type="radio" name="direction" value="zh2en" checked><span>中 → 英</span></label>
+              <label><input type="radio" name="direction" value="en2zh"><span>英 → 中</span></label>
+            </div>
           </div>
         </div>
-        <div class="form-row">
-          <label>模型</label>
-          <select id="model" style="flex:1"></select>
-        </div>
-        <div class="form-row">
-          <label>方向</label>
-          <div class="radio-group" id="directionGroup">
-            <label><input type="radio" name="direction" value="zh2en" checked><span>中 → 英</span></label>
-            <label><input type="radio" name="direction" value="en2zh"><span>英 → 中</span></label>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Input -->
-    <section class="card">
-      <div class="card-header">输入</div>
-      <div class="card-body">
-        <textarea id="inputText" placeholder="在此输入文本，也可以 Ctrl+V 直接粘贴图片自动识别..."></textarea>
-      </div>
-    </section>
-
-    <!-- Actions -->
-    <div class="actions">
-      <button class="btn btn-primary" id="translateBtn">翻译</button>
-      <button class="btn btn-secondary" id="ocrBtn">识别图片</button>
-      <input type="file" id="fileInput" accept="image/*" hidden>
-      <button class="btn btn-ghost" id="clearBtn">清空</button>
+      </section>
     </div>
 
-    <!-- Output -->
-    <section class="card">
-      <div class="card-header">
-        <span>输出</span>
-        <button class="btn btn-sm" id="copyBtn">复制</button>
-      </div>
-      <div class="card-body">
-        <textarea id="outputText" readonly placeholder="翻译结果会在显示..."></textarea>
-      </div>
-    </section>
+    <!-- Right: Input + Output -->
+    <div class="col-right">
+      <section class="card">
+        <div class="card-header">输入文本</div>
+        <div class="card-body">
+          <textarea id="inputText" placeholder="在此输入文本，或 Ctrl+V 直接粘贴图片自动识别..."></textarea>
+        </div>
+      </section>
 
-    <!-- Status -->
-    <div class="status-bar">
-      <span id="statusLabel">就绪</span>
-      <span class="shortcuts">Ctrl+Enter 翻译 · Ctrl+V 粘贴图片</span>
+      <div class="actions">
+        <button class="btn btn-primary" id="translateBtn">✦ 翻译</button>
+        <button class="btn btn-secondary" id="ocrBtn">◇ 识别图片</button>
+        <input type="file" id="fileInput" accept="image/*" hidden>
+        <button class="btn btn-ghost" id="clearBtn">清空</button>
+      </div>
+
+      <section class="card">
+        <div class="card-header">
+          <span>翻译结果</span>
+          <button class="btn btn-sm" id="copyBtn">复制</button>
+        </div>
+        <div class="card-body">
+          <textarea id="outputText" readonly placeholder="翻译结果会显示在这里..."></textarea>
+        </div>
+      </section>
     </div>
   </main>
 
+  <!-- Status -->
+  <div class="status-bar">
+    <span id="statusLabel">就绪</span>
+    <span class="shortcuts">Ctrl+Enter 翻译 · Ctrl+V 粘贴图片</span>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
 
+<script src="/static/js/particles.js"></script>
 <script src="/static/js/app.js"></script>
 </body>
 </html>

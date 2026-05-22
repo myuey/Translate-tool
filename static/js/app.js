@@ -13,8 +13,11 @@ function toast(msg) {
 // ── Status ──
 function setStatus(text, loading) {
   const el = document.getElementById("statusLabel");
-  el.textContent = text;
-  el.classList.toggle("loading", !!loading);
+  if (loading) {
+    el.innerHTML = `<span class="status-dot"></span><span class="loading-text">${text}</span>`;
+  } else {
+    el.innerHTML = text;
+  }
 }
 
 // ── Load config ──
@@ -196,6 +199,17 @@ document.addEventListener("keydown", (e) => {
     e.preventDefault();
     translate();
   }
+});
+
+// ── Card mouse tracking for glow ──
+document.querySelectorAll('.card').forEach(card => {
+  card.addEventListener('mousemove', e => {
+    const rect = card.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    card.style.setProperty('--mx', x + '%');
+    card.style.setProperty('--my', y + '%');
+  });
 });
 
 // ── Init ──

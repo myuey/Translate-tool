@@ -24,12 +24,15 @@ if %ERRORLEVEL% neq 0 (
     echo 依赖安装完成！
 )
 
+echo 正在停止旧服务...
+for /f "tokens=2" %%i in ('tasklist /fi "imagename eq python.exe" /nh 2^>nul') do taskkill /pid %%i /f >nul 2>&1
+for /f "tokens=2" %%i in ('tasklist /fi "imagename eq pythonw.exe" /nh 2^>nul') do taskkill /pid %%i /f >nul 2>&1
+timeout /t 1 /nobreak >nul
+
 echo 正在启动服务...
-start /min "" pythonw "%~dp0app.py" 2>nul
+start /min "" pythonw "%~dp0app.py"
 if %ERRORLEVEL% neq 0 (
     start "" python "%~dp0app.py"
 )
-timeout /t 3 /nobreak >nul
-start "" http://127.0.0.1:5000
-echo 服务已启动，浏览器已打开
+echo 服务启动中，浏览器将自动打开...
 exit

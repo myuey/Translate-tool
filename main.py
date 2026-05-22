@@ -3,12 +3,20 @@ from tkinter import ttk, messagebox, filedialog
 import requests
 import json
 import threading
+import tempfile
+import os
 
 try:
     import easyocr
     OCR_AVAILABLE = True
 except ImportError:
     OCR_AVAILABLE = False
+
+try:
+    from PIL import ImageGrab
+    PIL_AVAILABLE = True
+except ImportError:
+    PIL_AVAILABLE = False
 
 
 PROVIDERS = {
@@ -198,6 +206,64 @@ def _on_ocr_error(msg):
     messagebox.showerror("识别失败", msg)
 
 
+def on_input_paste(event):
+    """Paste image from clipboard → OCR; fallback to text paste."""
+    if not (OCR_AVAILABLE and PIL_AVAILABLE):
+        return
+    try:
+        img = ImageGrab.grabclipboard()
+    except Exception:
+        return
+    if img is None:
+        return  # not an image, let default paste handle it
+
+    tmp_path = None
+    try:
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+        tmp_path = tmp.name
+        tmp.close()
+        img.save(tmp_path)
+
+        status_label.config(text="识别中...")
+        translate_btn.config(state=tk.DISABLED)
+
+        def task():
+            try:
+                reader = get_ocr_reader()
+                result = reader.readtext(tmp_path)
+                lines = [item[1] for item in result]
+                text = "\n".join(lines) if lines else ""
+                root.after(0, lambda: _on_paste_ocr_done(text))
+            except Exception as e:
+                root.after(0, lambda: _on_ocr_error(str(e)))
+            finally:
+                try:
+                    os.unlink(tmp_path)
+                except Exception:
+                    pass
+
+        threading.Thread(target=task, daemon=True).start()
+    except Exception as e:
+        if tmp_path:
+            try:
+                os.unlink(tmp_path)
+            except Exception:
+                pass
+        return  # fallback to text paste
+
+    return "break"
+
+
+def _on_paste_ocr_done(text):
+    translate_btn.config(state=tk.NORMAL)
+    if text.strip():
+        input_box.delete("1.0", tk.END)
+        input_box.insert("1.0", text)
+        status_label.config(text=f"粘贴图片识别完成，{len(text)} 字符")
+    else:
+        status_label.config(text="图片中未识别到文字")
+
+
 def toggle_api_key_visibility():
     if api_key_entry.cget("show") == "":
         api_key_entry.config(show="*")
@@ -303,9 +369,10 @@ output_box = tk.Text(frame, height=6, font=("微软雅黑", 11), padx=6, pady=6,
 output_box.pack(fill=tk.BOTH, expand=True, pady=(4, 8))
 
 # ── Hotkey hint ──
-ttk.Label(frame, text="快捷键: Ctrl+Enter 翻译 | Ctrl+Shift+C 清空",
+ttk.Label(frame, text="快捷键: Ctrl+Enter 翻译 | Ctrl+V 粘贴图片识别 | Ctrl+Shift+C 清空",
           font=("微软雅黑", 9), foreground="gray").pack(anchor=tk.E)
 
+input_box.bind("<Control-v>", on_input_paste)
 root.bind("<Control-Return>", lambda e: translate_text())
 root.bind("<Control-Shift-KeyPress-C>", lambda e: clear_text())
 

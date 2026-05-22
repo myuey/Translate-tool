@@ -7,8 +7,15 @@ import threading
 
 DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"
 
+DIRECTIONS = {
+    "zh2en": {"label": "中 → 英", "input_hint": "输入中文：", "output_hint": "英文结果：",
+              "input_warn": "请先输入要翻译的中文", "sys_prompt": "You are a professional translator. Translate the following Chinese text to English. Output only the translation, nothing else."},
+    "en2zh": {"label": "英 → 中", "input_hint": "输入英文：", "output_hint": "中文结果：",
+              "input_warn": "请先输入要翻译的英文", "sys_prompt": "You are a professional translator. Translate the following English text to Chinese. Output only the translation, nothing else."},
+}
 
-def translate_with_deepseek(api_key, text, callback):
+
+def translate_with_deepseek(api_key, text, direction, callback):
     """Call DeepSeek API in a separate thread."""
 
     def task():
@@ -19,14 +26,7 @@ def translate_with_deepseek(api_key, text, callback):
         payload = {
             "model": "deepseek-chat",
             "messages": [
-                {
-                    "role": "system",
-                    "content": (
-                        "You are a professional translator. "
-                        "Translate the following Chinese text to English. "
-                        "Output only the translation, nothing else."
-                    ),
-                },
+                {"role": "system", "content": DIRECTIONS[direction]["sys_prompt"]},
                 {"role": "user", "content": text},
             ],
             "stream": False,
@@ -58,6 +58,14 @@ def on_translate_complete(result, error):
         output_box.insert("1.0", result)
 
 
+def on_direction_change(*args):
+    d = direction_var.get()
+    info = DIRECTIONS[d]
+    input_label.config(text=info["input_hint"])
+    output_label.config(text=info["output_hint"])
+    root.title(f"DeepSeek 翻译 - {info['label']}")
+
+
 def translate_text():
     api_key = api_key_var.get().strip()
     if not api_key:
@@ -65,12 +73,12 @@ def translate_text():
         return
     input_text = input_box.get("1.0", tk.END).strip()
     if not input_text:
-        messagebox.showwarning("提示", "请先输入要翻译的中文")
+        messagebox.showwarning("提示", DIRECTIONS[direction_var.get()]["input_warn"])
         return
 
     translate_btn.config(state=tk.DISABLED)
     status_label.config(text="翻译中...")
-    translate_with_deepseek(api_key, input_text, on_translate_complete)
+    translate_with_deepseek(api_key, input_text, direction_var.get(), on_translate_complete)
 
 
 def clear_text():
@@ -89,7 +97,7 @@ def toggle_api_key_visibility():
 
 # Build GUI
 root = tk.Tk()
-root.title("DeepSeek 中译英翻译")
+root.title("DeepSeek 翻译 - 中 → 英")
 root.geometry("620x540")
 root.resizable(True, True)
 
@@ -111,8 +119,20 @@ toggle_btn.pack(side=tk.RIGHT, padx=(6, 0))
 # Separator
 ttk.Separator(frame, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=(10, 10))
 
+# Direction selector
+dir_frame = ttk.Frame(frame)
+dir_frame.pack(fill=tk.X, pady=(0, 8))
+
+direction_var = tk.StringVar(value="zh2en")
+direction_var.trace_add("write", on_direction_change)
+
+ttk.Label(dir_frame, text="翻译方向：", font=("微软雅黑", 10)).pack(side=tk.LEFT)
+ttk.Radiobutton(dir_frame, text="中 → 英", variable=direction_var, value="zh2en").pack(side=tk.LEFT, padx=(8, 4))
+ttk.Radiobutton(dir_frame, text="英 → 中", variable=direction_var, value="en2zh").pack(side=tk.LEFT, padx=4)
+
 # Input area
-ttk.Label(frame, text="输入中文：", font=("微软雅黑", 11)).pack(anchor=tk.W)
+input_label = ttk.Label(frame, text="输入中文：", font=("微软雅黑", 11))
+input_label.pack(anchor=tk.W)
 input_box = tk.Text(frame, height=8, font=("微软雅黑", 11), padx=6, pady=6)
 input_box.pack(fill=tk.X, pady=(4, 8))
 
@@ -130,7 +150,8 @@ status_label = ttk.Label(btn_frame, text="就绪", font=("微软雅黑", 9), for
 status_label.pack(side=tk.RIGHT)
 
 # Output area
-ttk.Label(frame, text="英文结果：", font=("微软雅黑", 11)).pack(anchor=tk.W, pady=(12, 0))
+output_label = ttk.Label(frame, text="英文结果：", font=("微软雅黑", 11))
+output_label.pack(anchor=tk.W, pady=(12, 0))
 output_box = tk.Text(frame, height=8, font=("微软雅黑", 11), padx=6, pady=6, fg="#2c3e50")
 output_box.pack(fill=tk.BOTH, expand=True, pady=(4, 8))
 
